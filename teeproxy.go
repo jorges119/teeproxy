@@ -21,7 +21,7 @@ var (
 	targetProduction          = flag.String("a", "localhost:8080", "where production traffic goes. http://localhost:8080/production")
 	altTarget                 = flag.String("b", "localhost:8081", "where testing traffic goes. response are skipped. http://localhost:8081/test")
 	debug                     = flag.Bool("debug", false, "more logging, showing ignored output")
-	verbose                   = flag.Bool("verbose", true, "log the requests and responses like an access log")
+	verbose                   = flag.Bool("verbose", false, "log the requests and responses like an access log")
 	productionTimeout         = flag.Int("a.timeout", 2500, "timeout in milliseconds for production traffic")
 	alternateTimeout          = flag.Int("b.timeout", 1000, "timeout in milliseconds for alternate site traffic")
 	productionHostRewrite     = flag.Bool("a.rewrite", false, "rewrite the host header when proxying production traffic")

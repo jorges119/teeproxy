@@ -58,3 +58,7 @@ By default, teeproxy tries to reuse connections. This can be turned off, if the
 endpoints do not support this.
 *  `-close-connections` (default is false)
 
+#### Verbose logging
+If you want to log all requests and responses in a single line per host, enable verbose logging.
+* `verbose bool` (default is false)
+
