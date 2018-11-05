@@ -21,6 +21,7 @@ var (
 	targetProduction          = flag.String("a", "localhost:8080", "where production traffic goes. http://localhost:8080/production")
 	altTarget                 = flag.String("b", "localhost:8081", "where testing traffic goes. response are skipped. http://localhost:8081/test")
 	debug                     = flag.Bool("debug", false, "more logging, showing ignored output")
+	verbose                   = flag.Bool("verbose", true, "log the requests and responses like an access log")
 	productionTimeout         = flag.Int("a.timeout", 2500, "timeout in milliseconds for production traffic")
 	alternateTimeout          = flag.Int("b.timeout", 1000, "timeout in milliseconds for alternate site traffic")
 	productionHostRewrite     = flag.Bool("a.rewrite", false, "rewrite the host header when proxying production traffic")
@@ -110,6 +111,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 			timeout := time.Duration(*alternateTimeout) * time.Millisecond
 			// This keeps responses from the alternative target away from the outside world.
+			startReq := time.Now()
 			alternateResponse := handleRequest(alternativeRequest, timeout)
 			if alternateResponse != nil {
 				// NOTE(girone): Even though we do not care about the second
@@ -117,6 +119,10 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				// the connection stays open and we would soon run out of file
 				// descriptors.
 				alternateResponse.Body.Close()
+			}
+
+			if *verbose {
+				log.Printf("[%v] %v %v %v %v %v %v", time.Now().UTC(), req.RemoteAddr, req.Method, alternateResponse.StatusCode, time.Since(startReq), alternativeRequest.Host, req.RequestURI)
 			}
 		}()
 	} else {
@@ -139,10 +145,15 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	timeout := time.Duration(*productionTimeout) * time.Millisecond
+	startReq := time.Now()
 	resp := handleRequest(productionRequest, timeout)
 
 	if resp != nil {
 		defer resp.Body.Close()
+
+		if *verbose {
+			log.Printf("[%v] %v %v %v %v %v %v", time.Now().UTC(), req.RemoteAddr, req.Method, resp.StatusCode, time.Since(startReq), productionRequest.Host, req.RequestURI)
+		}
 
 		// Forward response headers.
 		for k, v := range resp.Header {
