@@ -43,6 +43,11 @@ Optionally rewrite host value in the http request header.
 *  `-key.file string`: a TLS private key file. (default `""`)
 *  `-cert.file string`: a TLS certificate file. (default `""`)
 
+#### Configuring URL scheme to use HTTPS ####
+It may be necessary to rewrite the URL scheme to HTTPS (in case you're redirecting HTTP traffic to an HTTPS endpoint).
+*  `-a.https bool`: rewrite for production traffic (default `false`)
+*  `-b.https bool`: rewrite for alternate site traffic (default `false`)
+
 #### Configuring client IP forwarding ####
 It's possible to write `X-Forwarded-For` and `Forwarded` header (RFC 7239) so
 that the production and alternate backends know about the clients:
