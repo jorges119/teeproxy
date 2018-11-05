@@ -17,19 +17,21 @@ import (
 
 // Console flags
 var (
-	listen                = flag.String("l", ":8888", "port to accept requests")
-	targetProduction      = flag.String("a", "localhost:8080", "where production traffic goes. http://localhost:8080/production")
-	altTarget             = flag.String("b", "localhost:8081", "where testing traffic goes. response are skipped. http://localhost:8081/test")
-	debug                 = flag.Bool("debug", false, "more logging, showing ignored output")
-	productionTimeout     = flag.Int("a.timeout", 2500, "timeout in milliseconds for production traffic")
-	alternateTimeout      = flag.Int("b.timeout", 1000, "timeout in milliseconds for alternate site traffic")
-	productionHostRewrite = flag.Bool("a.rewrite", false, "rewrite the host header when proxying production traffic")
-	alternateHostRewrite  = flag.Bool("b.rewrite", false, "rewrite the host header when proxying alternate site traffic")
-	percent               = flag.Float64("p", 100.0, "float64 percentage of traffic to send to testing")
-	tlsPrivateKey         = flag.String("key.file", "", "path to the TLS private key file")
-	tlsCertificate        = flag.String("cert.file", "", "path to the TLS certificate file")
-	forwardClientIP       = flag.Bool("forward-client-ip", false, "enable forwarding of the client IP to the backend using the 'X-Forwarded-For' and 'Forwarded' headers")
-	closeConnections      = flag.Bool("close-connections", false, "close connections to the clients and backends")
+	listen                    = flag.String("l", ":8888", "port to accept requests")
+	targetProduction          = flag.String("a", "localhost:8080", "where production traffic goes. http://localhost:8080/production")
+	altTarget                 = flag.String("b", "localhost:8081", "where testing traffic goes. response are skipped. http://localhost:8081/test")
+	debug                     = flag.Bool("debug", false, "more logging, showing ignored output")
+	productionTimeout         = flag.Int("a.timeout", 2500, "timeout in milliseconds for production traffic")
+	alternateTimeout          = flag.Int("b.timeout", 1000, "timeout in milliseconds for alternate site traffic")
+	productionHostRewrite     = flag.Bool("a.rewrite", false, "rewrite the host header when proxying production traffic")
+	alternateHostRewrite      = flag.Bool("b.rewrite", false, "rewrite the host header when proxying alternate site traffic")
+	productionHostSchemeHTTPS = flag.Bool("a.https", false, "rewrite the host scheme when proxying production traffic to use HTTPS")
+	alternateHostSchemeHTTPS  = flag.Bool("b.https", false, "rewrite the host scheme when proxying alternate site traffic to use HTTPS")
+	percent                   = flag.Float64("p", 100.0, "float64 percentage of traffic to send to testing")
+	tlsPrivateKey             = flag.String("key.file", "", "path to the TLS private key file")
+	tlsCertificate            = flag.String("cert.file", "", "path to the TLS certificate file")
+	forwardClientIP           = flag.Bool("forward-client-ip", false, "enable forwarding of the client IP to the backend using the 'X-Forwarded-For' and 'Forwarded' headers")
+	closeConnections          = flag.Bool("close-connections", false, "close connections to the clients and backends")
 )
 
 // Sets the request URL.
@@ -102,6 +104,10 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				alternativeRequest.Host = h.Alternative
 			}
 
+			if *alternateHostSchemeHTTPS {
+				alternativeRequest.URL.Scheme = "https"
+			}
+
 			timeout := time.Duration(*alternateTimeout) * time.Millisecond
 			// This keeps responses from the alternative target away from the outside world.
 			alternateResponse := handleRequest(alternativeRequest, timeout)
@@ -126,6 +132,10 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if *productionHostRewrite {
 		productionRequest.Host = h.Target
+	}
+
+	if *productionHostSchemeHTTPS {
+		productionRequest.URL.Scheme = "https"
 	}
 
 	timeout := time.Duration(*productionTimeout) * time.Millisecond
