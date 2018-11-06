@@ -86,6 +86,11 @@ type handler struct {
 // ServeHTTP duplicates the incoming request (req) and does the request to the
 // Target and the Alternate target discading the Alternate response
 func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "HEAD" {
+		log.Printf("[%v] %v Received HEAD request. Ignoring.", "X", time.Now().UTC())
+		return
+	}
+
 	var productionRequest, alternativeRequest *http.Request
 	if *forwardClientIP {
 		updateForwardedHeaders(req)
@@ -122,7 +127,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			}
 
 			if *verbose {
-				log.Printf("[%v] %v %v %v %v %v %v", time.Now().UTC(), req.RemoteAddr, req.Method, alternateResponse.StatusCode, time.Since(startReq), alternativeRequest.Host, req.RequestURI)
+				log.Printf("[%v] %v %v %v %v %v %v %v", "B", time.Now().UTC(), req.RemoteAddr, req.Method, alternateResponse.StatusCode, time.Since(startReq), alternativeRequest.Host, req.RequestURI)
 			}
 		}()
 	} else {
@@ -152,7 +157,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		defer resp.Body.Close()
 
 		if *verbose {
-			log.Printf("[%v] %v %v %v %v %v %v", time.Now().UTC(), req.RemoteAddr, req.Method, resp.StatusCode, time.Since(startReq), productionRequest.Host, req.RequestURI)
+			log.Printf("[%v] %v %v %v %v %v %v %v", "A", time.Now().UTC(), req.RemoteAddr, req.Method, resp.StatusCode, time.Since(startReq), productionRequest.Host, req.RequestURI)
 		}
 
 		// Forward response headers.
