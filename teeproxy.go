@@ -47,7 +47,7 @@ func setRequestTarget(request *http.Request, target *string) {
 }
 
 // Sends a request and returns the response.
-func handleRequest(request *http.Request, timeout time.Duration) *http.Response {
+func handleRequest(origin string, request *http.Request, timeout time.Duration) *http.Response {
 	transport := &http.Transport{
 		// NOTE(girone): DialTLS is not needed here, because the teeproxy works
 		// as an SSL terminator.
@@ -71,7 +71,7 @@ func handleRequest(request *http.Request, timeout time.Duration) *http.Response 
 	//response, err := client.Do(request)
 	response, err := transport.RoundTrip(request)
 	if err != nil {
-		log.Println("Request failed:", err)
+		log.Printf("[%v] Request failed: [%v]", origin, err)
 	}
 	return response
 }
@@ -86,6 +86,11 @@ type handler struct {
 // ServeHTTP duplicates the incoming request (req) and does the request to the
 // Target and the Alternate target discading the Alternate response
 func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "HEAD" {
+		log.Printf("[%v] %v Received HEAD request. Ignoring.", "X", time.Now().UTC())
+		return
+	}
+
 	var productionRequest, alternativeRequest *http.Request
 	if *forwardClientIP {
 		updateForwardedHeaders(req)
@@ -112,7 +117,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			timeout := time.Duration(*alternateTimeout) * time.Millisecond
 			// This keeps responses from the alternative target away from the outside world.
 			startReq := time.Now()
-			alternateResponse := handleRequest(alternativeRequest, timeout)
+			alternateResponse := handleRequest("B", alternativeRequest, timeout)
 			if alternateResponse != nil {
 				// NOTE(girone): Even though we do not care about the second
 				// response, we still need to close the Body reader. Otherwise
@@ -122,7 +127,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			}
 
 			if *verbose {
-				log.Printf("[%v] %v %v %v %v %v %v", time.Now().UTC(), req.RemoteAddr, req.Method, alternateResponse.StatusCode, time.Since(startReq), alternativeRequest.Host, req.RequestURI)
+				log.Printf("[%v] %v %v %v %v %v %v %v", "B", time.Now().UTC(), req.RemoteAddr, req.Method, alternateResponse.StatusCode, time.Since(startReq), alternativeRequest.Host, req.RequestURI)
 			}
 		}()
 	} else {
@@ -146,13 +151,13 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	timeout := time.Duration(*productionTimeout) * time.Millisecond
 	startReq := time.Now()
-	resp := handleRequest(productionRequest, timeout)
+	resp := handleRequest("A", productionRequest, timeout)
 
 	if resp != nil {
 		defer resp.Body.Close()
 
 		if *verbose {
-			log.Printf("[%v] %v %v %v %v %v %v", time.Now().UTC(), req.RemoteAddr, req.Method, resp.StatusCode, time.Since(startReq), productionRequest.Host, req.RequestURI)
+			log.Printf("[%v] %v %v %v %v %v %v %v", "A", time.Now().UTC(), req.RemoteAddr, req.Method, resp.StatusCode, time.Since(startReq), productionRequest.Host, req.RequestURI)
 		}
 
 		// Forward response headers.
