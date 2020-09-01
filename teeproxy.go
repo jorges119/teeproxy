@@ -71,7 +71,12 @@ func handleRequest(origin string, request *http.Request, timeout time.Duration) 
 	//response, err := client.Do(request)
 	response, err := transport.RoundTrip(request)
 	if err != nil {
-		log.Printf("[%v] Request failed: [%v]", origin, err)
+		// try the request again, there is a possible DNS error
+		response, err = transport.RoundTrip(request)
+
+		if err != nil {
+			log.Printf("[%v] Request failed twice: [%v]", origin, err)
+		}
 	}
 	return response
 }
