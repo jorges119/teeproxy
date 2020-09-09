@@ -51,24 +51,19 @@ func handleRequest(origin string, request *http.Request, timeout time.Duration) 
 	transport := &http.Transport{
 		// NOTE(girone): DialTLS is not needed here, because the teeproxy works
 		// as an SSL terminator.
-		Dial: (&net.Dialer{ // go1.8 deprecated: Use DialContext instead
+		DialContext: (&net.Dialer{ // go1.8 deprecated: Use DialContext instead
 			Timeout:   timeout,
-			KeepAlive: 10 * timeout,
-		}).Dial,
+			KeepAlive: timeout,
+			DualStack: true,
+		}).DialContext,
 		// Close connections to the production and alternative servers?
-		DisableKeepAlives: *closeConnections,
-		//IdleConnTimeout: timeout,  // go1.8
+		DisableKeepAlives:     *closeConnections,
+		IdleConnTimeout:       timeout,
 		TLSHandshakeTimeout:   timeout,
 		ResponseHeaderTimeout: timeout,
 		ExpectContinueTimeout: timeout,
 	}
-	// Do not use http.Client here, because it's higher level and processes
-	// redirects internally, which is not what we want.
-	//client := &http.Client{
-	//	Timeout: timeout,
-	//	Transport: transport,
-	//}
-	//response, err := client.Do(request)
+
 	response, err := transport.RoundTrip(request)
 	if err != nil {
 		log.Printf("[%v] Request failed: [%v]", origin, err)
